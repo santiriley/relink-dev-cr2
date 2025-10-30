@@ -19,7 +19,7 @@ export async function runAggregate() {
             const data = o.data();
             const start = new Date(data.startedAt).getTime();
             const end = data.endedAt ? new Date(data.endedAt).getTime() : Date.now();
-            saidiHours += Math.max(0, (end - start) / 3_600_000);
+            saidiHours += Math.max(0, (end - start) / 3600000);
         });
         const teleSnap = await db.collection('telemetry')
             .where('communityId', '==', communityId)
