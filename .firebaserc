@@ -1,6 +1,1 @@
-# IMPORTANT: Replace "relink-dev-cr" with your actual Firebase project ID.
-{
-  "projects": {
-    "default": "relink-dev-cr"
-  }
-}
+{ "projects": { "default": "relink-dev-cr" } }
