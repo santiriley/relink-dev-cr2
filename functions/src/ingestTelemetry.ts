@@ -4,22 +4,36 @@ import { db } from './firebaseAdmin.js';
 import { TELEMETRY_INGEST_TOKEN } from './config.js';
 
 export const ingestTelemetry = onRequest({ cors: true, secrets: [TELEMETRY_INGEST_TOKEN] }, async (req, res) => {
-  if (req.method !== 'POST') { res.status(405).json({ ok:false, error:'Use POST' }); return; }
-
-  const token = req.header('x-api-key') ?? '';
-  const expected = TELEMETRY_INGEST_TOKEN.value();
-  if (!expected || token !== expected) { res.status(401).json({ ok:false, error:'unauthorized' }); return; }
-
   try {
-    const b = req.body ?? {};
-    if (!b.communityId || !b.ts) { res.status(400).json({ ok:false, error:'communityId and ts required' }); return; }
+    if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Use POST' }); return; }
 
-    await db.collection('telemetry').add({
-      communityId: b.communityId, ts: b.ts,
-      voltage: b.voltage, frequency: b.frequency, uptime: b.uptime, kWh: b.kWh,
-      source: b.source ?? 'manual', deviceId: b.deviceId ?? null
-    });
+    const token = req.header('x-api-key') ?? '';
+    const expected = TELEMETRY_INGEST_TOKEN.value();
+    if (!expected || token !== expected) { res.status(401).json({ ok: false, error: 'unauthorized' }); return; }
 
-    res.json({ ok:true });
-  } catch (e:any) { logger.error(e); res.status(500).json({ ok:false }); }
+    const { communityId, ts, voltage, source, frequency, uptime, kWh } = req.body ?? {};
+    if (!communityId || ts === undefined || typeof voltage !== 'number') {
+      res.status(400).json({ ok: false, error: 'bad-payload' }); return;
+    }
+
+    // Coerce ts (ISO string or epoch ms) → ISO
+    const tsMs = typeof ts === 'number' ? ts : Date.parse(ts);
+    if (!Number.isFinite(tsMs)) { res.status(400).json({ ok: false, error: 'ts-invalid' }); return; }
+
+    const doc: Record<string, unknown> = {
+      communityId,
+      ts: new Date(tsMs).toISOString(),
+      voltage,
+      source: source ?? 'iot',
+    };
+    if (typeof frequency === 'number') doc.frequency = frequency;
+    if (typeof uptime    === 'number') doc.uptime    = uptime;
+    if (typeof kWh       === 'number') doc.kWh       = kWh;
+
+    await db.collection('telemetry').add(doc);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('ingestTelemetry error:', e);
+    res.status(500).json({ ok: false, error: e instanceof Error ? e.message : 'unknown' });
+  }
 });
