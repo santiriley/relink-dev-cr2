@@ -11,9 +11,12 @@ export const whatsappWebhook = onRequest({ cors: true }, async (req, res) => {
     if (req.method === 'GET') {
         const verify = req.query['hub.verify_token'];
         const challenge = req.query['hub.challenge'];
-        if (verify === WHATSAPP_VERIFY_TOKEN)
-            return res.status(200).send(challenge);
-        return res.status(403).send('forbidden');
+        if (verify === WHATSAPP_VERIFY_TOKEN) {
+            res.status(200).send(challenge);
+            return;
+        }
+        res.status(403).send('forbidden');
+        return;
     }
     if (req.method === 'POST') {
         try {
@@ -27,11 +30,13 @@ export const whatsappWebhook = onRequest({ cors: true }, async (req, res) => {
                     });
                 }
             }
-            return res.json({ ok: true });
+            res.json({ ok: true });
+            return;
         }
         catch {
-            return res.json({ ok: true });
+            res.json({ ok: true });
+            return;
         }
     }
-    return res.status(200).send('ok');
+    res.status(200).send('ok');
 });
