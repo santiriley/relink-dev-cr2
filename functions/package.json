@@ -10,8 +10,8 @@
     "predeploy": "npm run build"
   },
   "dependencies": {
-    "firebase-admin": "^13.5.0",
-    "firebase-functions": "^6.6.0"
+    "firebase-admin": "^12.5.0",
+    "firebase-functions": "^5.1.1"
   },
   "devDependencies": {
     "typescript": "^5.6.2"
