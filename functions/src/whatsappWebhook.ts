@@ -8,11 +8,11 @@ function parseOutageText(t: string) {
   return { communityId: mId?.[1], notes: mNotes?.[1] ?? '' };
 }
 
-export const whatsappWebhook = onRequest({ cors: true }, async (req, res) => {
+export const whatsappWebhook = onRequest({ cors: true, secrets: [WHATSAPP_VERIFY_TOKEN] }, async (req, res) => {
   if (req.method === 'GET') {
     const verify = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-    if (verify === WHATSAPP_VERIFY_TOKEN) { res.status(200).send(challenge as any); return; }
+    if (verify === WHATSAPP_VERIFY_TOKEN.value()) { res.status(200).send(challenge as any); return; }
     res.status(403).send('forbidden'); return;
   }
 
