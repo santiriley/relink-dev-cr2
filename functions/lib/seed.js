@@ -1,7 +1,6 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import admin from './firebaseAdmin.js';
+import { db } from './firebaseAdmin.js';
 export const seedCommunity = onRequest(async (req, res) => {
-    const db = admin.firestore();
     const q = req.query;
     const id = String(q.id ?? 'costa-rica-demo');
     const doc = {
