@@ -1,9 +1,8 @@
 import { onRequest } from 'firebase-functions/v2/https';
-import admin from './firebaseAdmin.js';
+import { db } from './firebaseAdmin.js';
 import { WHATSAPP_VERIFY_TOKEN } from './config.js';
 
 function parseOutageText(t: string) {
-  // Minimal grammar: "OUTAGE communityId=XYZ notes=anything..."
   const mId = t.match(/communityId=([^\s]+)/i);
   const mNotes = t.match(/notes=(.*)$/i);
   return { communityId: mId?.[1], notes: mNotes?.[1] ?? '' };
@@ -13,12 +12,8 @@ export const whatsappWebhook = onRequest({ cors: true }, async (req, res) => {
   if (req.method === 'GET') {
     const verify = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-    if (verify === WHATSAPP_VERIFY_TOKEN) {
-      res.status(200).send(challenge as any);
-      return;
-    }
-    res.status(403).send('forbidden');
-    return;
+    if (verify === WHATSAPP_VERIFY_TOKEN) { res.status(200).send(challenge as any); return; }
+    res.status(403).send('forbidden'); return;
   }
 
   if (req.method === 'POST') {
@@ -27,18 +22,14 @@ export const whatsappWebhook = onRequest({ cors: true }, async (req, res) => {
       if (/OUTAGE/i.test(text)) {
         const { communityId, notes } = parseOutageText(text);
         if (communityId) {
-          await admin.firestore().collection('outages').add({
+          await db.collection('outages').add({
             communityId, startedAt: new Date().toISOString(),
             endedAt: null, source: 'whatsapp', notes
           });
         }
       }
-      res.json({ ok:true });
-      return;
-    } catch {
-      res.json({ ok:true });
-      return;
-    }
+      res.json({ ok:true }); return;
+    } catch { res.json({ ok:true }); return; }
   }
 
   res.status(200).send('ok');
