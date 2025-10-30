@@ -1,10 +1,9 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import admin from './firebaseAdmin.js';
+import { db } from './firebaseAdmin.js';
 
 export async function runAggregate() {
-  const db = admin.firestore();
   const today = new Date().toISOString().slice(0,10);
   const since = new Date(); since.setDate(since.getDate() - 1);
 
@@ -15,6 +14,7 @@ export async function runAggregate() {
     const outagesSnap = await db.collection('outages')
       .where('communityId','==',communityId)
       .where('startedAt','>=',since.toISOString()).get();
+
     let saifiEvents = 0, saidiHours = 0;
     outagesSnap.forEach(o => {
       saifiEvents += 1;
@@ -27,8 +27,12 @@ export async function runAggregate() {
     const teleSnap = await db.collection('telemetry')
       .where('communityId','==',communityId)
       .where('ts','>=',since.toISOString()).get();
+
     let voltageDipCount = 0;
-    teleSnap.forEach(t => { const v = t.get('voltage'); if (typeof v === 'number' && v < 200) voltageDipCount++; });
+    teleSnap.forEach(t => {
+      const v = t.get('voltage');
+      if (typeof v === 'number' && v < 200) voltageDipCount++;
+    });
 
     await db.collection('aggregates').doc(`${today}-${communityId}`).set({
       date: today, communityId,
