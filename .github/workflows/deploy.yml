@@ -1,0 +1,47 @@
+name: Deploy Functions
+on: { workflow_dispatch: {} }
+
+# Least-privilege baseline for the runner itself
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Auth to GCP using a Service Account JSON stored in GitHub Secret GCP_SA_KEY
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - run: npm i -g firebase-tools
+
+      # Sync GH → Google Secret Manager (keeps GSM the source of truth)
+      - name: Push secrets to Google Secret Manager
+        env:
+          TELEMETRY_INGEST_TOKEN: ${{ secrets.TELEMETRY_INGEST_TOKEN }}
+          WHATSAPP_VERIFY_TOKEN:  ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
+        run: |
+          printf "%s" "$TELEMETRY_INGEST_TOKEN" > .telemetry.secret
+          printf "%s" "$WHATSAPP_VERIFY_TOKEN"  > .whatsapp.secret
+          firebase functions:secrets:set TELEMETRY_INGEST_TOKEN --project relink-dev-cr --data-file .telemetry.secret
+          firebase functions:secrets:set WHATSAPP_VERIFY_TOKEN  --project relink-dev-cr --data-file .whatsapp.secret
+          rm -f .telemetry.secret .whatsapp.secret
+
+      - name: Build functions
+        run: |
+          cd functions
+          npm ci || npm i
+          npm run build
+
+      - name: Deploy functions
+        run: |
+          # Ensures firebase-tools uses the short-lived creds from the auth action
+          export GOOGLE_APPLICATION_CREDENTIALS="$GOOGLE_GHA_CREDS_PATH"
+          firebase deploy --only functions --project relink-dev-cr
