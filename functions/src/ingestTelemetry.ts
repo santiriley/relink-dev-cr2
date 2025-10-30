@@ -3,13 +3,12 @@ import * as logger from 'firebase-functions/logger';
 import { db } from './firebaseAdmin.js';
 import { TELEMETRY_INGEST_TOKEN } from './config.js';
 
-export const ingestTelemetry = onRequest({ cors: true }, async (req, res) => {
+export const ingestTelemetry = onRequest({ cors: true, secrets: [TELEMETRY_INGEST_TOKEN] }, async (req, res) => {
   if (req.method !== 'POST') { res.status(405).json({ ok:false, error:'Use POST' }); return; }
 
   const token = req.header('x-api-key') ?? '';
-  if (!TELEMETRY_INGEST_TOKEN || token !== TELEMETRY_INGEST_TOKEN) {
-    res.status(401).json({ ok:false, error:'unauthorized' }); return;
-  }
+  const expected = TELEMETRY_INGEST_TOKEN.value();
+  if (!expected || token !== expected) { res.status(401).json({ ok:false, error:'unauthorized' }); return; }
 
   try {
     const b = req.body ?? {};
