@@ -1,4 +1,3 @@
-// functions/src/ingestTelemetry.ts
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { db } from './firebaseAdmin.js';
@@ -26,7 +25,7 @@ export const ingestTelemetry = onRequest(
         return;
       }
 
-      // Coerce ts (ISO string or epoch ms) → ISO string
+      // accept ISO string or epoch ms
       const tsMs = typeof ts === 'number' ? ts : Date.parse(ts);
       if (!Number.isFinite(tsMs)) {
         res.status(400).json({ ok: false, error: 'ts-invalid' });
@@ -40,8 +39,8 @@ export const ingestTelemetry = onRequest(
         source: source ?? 'iot',
       };
       if (typeof frequency === 'number') doc.frequency = frequency;
-      if (typeof uptime    === 'number') doc.uptime    = uptime;
-      if (typeof kWh       === 'number') doc.kWh       = kWh;
+      if (typeof uptime === 'number')    doc.uptime    = uptime;
+      if (typeof kWh === 'number')       doc.kWh       = kWh;
 
       await db.collection('telemetry').add(doc);
       res.json({ ok: true });
