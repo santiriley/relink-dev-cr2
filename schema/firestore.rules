@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Public collections for dashboard display
+    match /communities/{communityId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    match /aggregates/{aggregateId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Data ingested by backend services
+    match /telemetry/{telemetryId} {
+      allow read, write: if false;
+    }
+    
+    match /outages/{outageId} {
+      allow read, write: if false;
+    }
+    
+    // By default, deny all access. Service accounts (like Cloud Functions) bypass these rules.
+    // TODO: Harden these rules for production environments.
+  }
+}

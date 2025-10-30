@@ -1,0 +1,6 @@
+# IMPORTANT: Replace "REPLACE_ME" with your actual Firebase project ID.
+{
+  "projects": {
+    "default": "REPLACE_ME"
+  }
+}

@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "An abstract image of a power grid or network.",
+      "imageUrl": "https://images.unsplash.com/photo-1611599281058-94426d0618a7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxlbmVyZ3klMjBncmlkfGVufDB8fHx8MTc2MTc1MTk2N3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "energy grid"
+    }
+  ]
 }
