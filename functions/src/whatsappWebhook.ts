@@ -1,14 +1,18 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
 import { db } from './firebaseAdmin.js';
-import { WHATSAPP_VERIFY_TOKEN } from './config.js';
+import { WHATSAPP_VERIFY_TOKEN, REPORT_SALT } from './config.js';
+import { parseWhatsAppText } from './whatsappParser.js';
+import { createHash } from 'crypto';
 
-function parseOutageText(t: string) {
-  const mId = t.match(/communityId=([^\s]+)/i);
-  const mNotes = t.match(/notes=(.*)$/i);
-  return { communityId: mId?.[1], notes: mNotes?.[1] ?? '' };
+function extractWA(req: any) {
+  const w = req?.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+  const text = w?.text?.body ?? req?.body?.text ?? req?.body?.message ?? '';
+  const from = w?.from ?? req?.body?.from ?? null;
+  return { text, from };
 }
 
-export const whatsappWebhook = onRequest({ cors: true, secrets: [WHATSAPP_VERIFY_TOKEN] }, async (req, res) => {
+export const whatsappWebhook = onRequest({ cors: true, secrets: [WHATSAPP_VERIFY_TOKEN, REPORT_SALT] }, async (req, res) => {
   if (req.method === 'GET') {
     const verify = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
@@ -18,18 +22,29 @@ export const whatsappWebhook = onRequest({ cors: true, secrets: [WHATSAPP_VERIFY
 
   if (req.method === 'POST') {
     try {
-      const text = JSON.stringify(req.body);
-      if (/OUTAGE/i.test(text)) {
-        const { communityId, notes } = parseOutageText(text);
-        if (communityId) {
-          await db.collection('outages').add({
-            communityId, startedAt: new Date().toISOString(),
-            endedAt: null, source: 'whatsapp', notes
-          });
-        }
-      }
-      res.json({ ok:true }); return;
-    } catch { res.json({ ok:true }); return; }
+      const { text, from } = extractWA(req);
+      const parsed = parseWhatsAppText(text);
+      if (!parsed) { res.json({ ok: true, ignored: true }); return; }
+
+      const salt = REPORT_SALT.value() || 'salt';
+      const reporterHash = createHash('sha256').update(`${salt}:${from ?? 'anonymous'}`).digest('hex');
+
+      await db.collection('reports').add({
+        communityId: parsed.communityId,
+        type: parsed.type,
+        tsStart: parsed.tsStart,
+        tsEnd: parsed.type !== 'voltage_dip' ? (parsed.tsEnd ?? null) : null,
+        notes: parsed.notes ?? null,
+        reporterHash,
+        confidence: parsed.confidence,
+        source: 'whatsapp'
+      });
+
+      res.json({ ok: true }); return;
+    } catch (e) {
+      logger.error('whatsappWebhook error', e);
+      res.json({ ok: true }); return;
+    }
   }
 
   res.status(200).send('ok');
