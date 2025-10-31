@@ -7,5 +7,3 @@ if (!getApps().length) {
 
 export const db = getFirestore();
 db.settings({ ignoreUndefinedProperties: true });
-// after: export const db = admin.firestore();
-db.settings({ ignoreUndefinedProperties: true });
