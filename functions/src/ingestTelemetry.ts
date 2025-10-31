@@ -1,21 +1,22 @@
-
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { db } from './firebaseAdmin.js';
 import { TELEMETRY_INGEST_TOKEN } from './config.js';
 
 function toISO(ts: any): string {
-  try {
-    const d = new Date(ts);
-    if (Number.isNaN(d.getTime())) throw new Error('bad-date');
-    return d.toISOString();
-  } catch {
-    throw new Error('invalid_ts');
-  }
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) throw new Error('invalid_ts');
+  return d.toISOString();
 }
 function num(x: any): number | undefined {
   const n = typeof x === 'string' ? Number(x) : x;
   return Number.isFinite(n) ? n : undefined;
+}
+function scrub<T extends Record<string, any>>(obj: T) {
+  // remove undefined & NaN
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined && !(typeof v === 'number' && Number.isNaN(v)))
+  );
 }
 
 export const ingestTelemetry = onRequest(
@@ -31,22 +32,22 @@ export const ingestTelemetry = onRequest(
     }
 
     try {
-      const body = (req.body ?? {}) as any;
-      const communityId = String(body.communityId || '');
-      const tsISO = toISO(body.ts);
-      const source = (body.source as string) || 'iot';
+      const b = (req.body ?? {}) as any;
+      const communityId = String(b.communityId || '');
+      if (!communityId) { res.status(400).json({ ok: false, reason: 'missing communityId' }); return; }
 
-      if (!communityId) {
-        res.status(400).json({ ok: false, reason: 'missing communityId' }); return;
-      }
+      const ts = toISO(b.ts);
+      const base = {
+        communityId,
+        ts,
+        source: (b.source as string) || 'iot',
+        voltage: num(b.voltage),
+        frequency: num(b.frequency),
+        uptime: num(b.uptime),
+        kWh: num(b.kWh),
+      };
 
-      // Build doc only with valid numbers
-      const doc: any = { communityId, ts: tsISO, source };
-      const v = num(body.voltage);   if (v !== undefined) doc.voltage = v;
-      const f = num(body.frequency); if (f !== undefined) doc.frequency = f;
-      const u = num(body.uptime);    if (u !== undefined) doc.uptime = u;
-      const k = num(body.kWh);       if (k !== undefined) doc.kWh = k;
-
+      const doc = scrub(base);
       await db.collection('telemetry').add(doc);
       res.json({ ok: true });
     } catch (e: any) {
